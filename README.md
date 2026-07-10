@@ -10,13 +10,22 @@ Connections are keyed by the last octet of the host IP, so `192.168.0.22` become
 
 ```bash
 curl -O https://raw.githubusercontent.com/andresmillang/quick-ssh/main/s.sh
-chmod +x s.sh
-./s.sh
+bash s.sh
 ```
+
+The first run copies itself to `~/.local/bin/s` and (if needed) adds
+`~/.local/bin` to your `PATH` in `.bashrc` / `.zshrc`. After that, just type:
+
+```bash
+s
+```
+
+from anywhere. Open a new shell (or `source ~/.bashrc`) if `s` isn't found
+after the first install.
 
 ## Usage
 
-Run `./s.sh` for a menu:
+Type `s` for a menu:
 
 - **[n]** — Add a new connection. Prompts for IP + username, generates an
   `ed25519` key if you don't have one, installs the public key on the remote,

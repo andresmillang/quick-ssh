@@ -1,7 +1,43 @@
 #!/usr/bin/env bash
 
+INSTALL_DIR="$HOME/.local/bin"
+INSTALL_PATH="$INSTALL_DIR/s"
 CONFIG_FILE="$HOME/.ssh/quick_ssh.conf"
 KEY_FILE="$HOME/.ssh/id_ed25519"
+
+self_install() {
+    local self
+    self="$(readlink -f "$0" 2>/dev/null || echo "$0")"
+    [[ "$self" == "$INSTALL_PATH" ]] && return 0
+    [[ -f "$INSTALL_PATH" ]] && cmp -s "$self" "$INSTALL_PATH" 2>/dev/null && return 0
+
+    if [[ -f "$INSTALL_PATH" ]]; then
+        echo "Updating installed s at $INSTALL_PATH"
+    else
+        echo "First-time setup: installing to $INSTALL_PATH"
+    fi
+    mkdir -p "$INSTALL_DIR"
+    cp "$self" "$INSTALL_PATH"
+    chmod +x "$INSTALL_PATH"
+
+    local path_line='export PATH="$HOME/.local/bin:$PATH"'
+    for rc in "$HOME/.bashrc" "$HOME/.zshrc"; do
+        [[ -f "$rc" ]] || continue
+        if ! grep -qF "/.local/bin" "$rc"; then
+            printf '\n# Added by quick-ssh installer\n%s\n' "$path_line" >> "$rc"
+            echo "Added ~/.local/bin to PATH in $rc"
+        fi
+    done
+
+    echo
+    echo "Installed. From now on, just type: s"
+    if [[ ":$PATH:" != *":$INSTALL_DIR:"* ]]; then
+        echo "(open a new shell, or run: export PATH=\"\$HOME/.local/bin:\$PATH\")"
+    fi
+    echo
+}
+
+self_install "$@"
 
 mkdir -p "$HOME/.ssh"
 chmod 700 "$HOME/.ssh"
