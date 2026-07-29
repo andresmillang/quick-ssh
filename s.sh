@@ -179,7 +179,7 @@ EOF
 
     echo
     read -rp "Connect now? (y/n): " CONNECT_NOW
-    if [[ "${CONNECT_NOW,,}" == "y" ]]; then
+    if [[ "$CONNECT_NOW" == "y" || "$CONNECT_NOW" == "Y" ]]; then
         ssh "$USERNAME@$FULL_IP"
     fi
 }
@@ -242,10 +242,10 @@ try_connect() {
 while true; do
     show_menu
     read -rp "Enter choice: " CHOICE
-    case "${CHOICE,,}" in
-        a) add_new ;;
-        d) delete_connection ;;
-        q) exit 0 ;;
+    case "$CHOICE" in
+        a|A) add_new ;;
+        d|D) delete_connection ;;
+        q|Q) exit 0 ;;
         "") ;;
         *) try_connect "$CHOICE" ;;
     esac
