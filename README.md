@@ -27,7 +27,7 @@ after the first install.
 
 Type `s` for a menu:
 
-- **[n]** — Add a new connection. Prompts for IP + username, generates an
+- **[a]** — Add a new connection. Prompts for IP + username, generates an
   `ed25519` key if you don't have one, installs the public key on the remote,
   and verifies passwordless login works.
 - **[d]** — Delete a saved connection.

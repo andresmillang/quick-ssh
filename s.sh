@@ -56,7 +56,7 @@ show_menu() {
         echo "(none)"
     fi
     echo
-    echo "[n] Add connection"
+    echo "[a] Add connection"
     echo "[d] Delete connection"
     echo "[q] Quit"
     echo
@@ -243,7 +243,7 @@ while true; do
     show_menu
     read -rp "Enter choice: " CHOICE
     case "${CHOICE,,}" in
-        n) add_new ;;
+        a) add_new ;;
         d) delete_connection ;;
         q) exit 0 ;;
         "") ;;
