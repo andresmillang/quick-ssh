@@ -8,6 +8,8 @@ Connections are keyed by the last octet of the host IP, so `192.168.0.22` become
 
 ## Install
 
+### Linux / macOS
+
 ```bash
 curl -O https://raw.githubusercontent.com/andresmillang/quick-ssh/main/s.sh
 bash s.sh
@@ -22,6 +24,15 @@ s
 
 from anywhere. Open a new shell (or `source ~/.bashrc`) if `s` isn't found
 after the first install.
+
+### Windows
+
+Download `s.bat` and drop it somewhere on your `PATH` (or just in your user
+folder), then run `s` from `cmd` or PowerShell. It needs the OpenSSH client,
+which ships with Windows 10/11.
+
+Unlike the shell version, `s.bat` does not self-install — copy it where you
+want it.
 
 ## Usage
 
@@ -40,8 +51,10 @@ Type `s` for a menu:
 - `~/.ssh/id_ed25519` — generated if missing
 - Remote `~/.ssh/authorized_keys` — appended (never overwritten)
 
+On Windows these live under `%USERPROFILE%\.ssh\`.
+
 ## Passphrase-protected keys
 
 If your existing `id_ed25519` has a passphrase, the script offers to either
 strip it (you need the passphrase) or back up the old key and generate a new
-one.
+one. `s.bat` does not handle this case — it assumes an unencrypted key.
