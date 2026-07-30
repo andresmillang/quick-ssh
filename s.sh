@@ -121,10 +121,52 @@ add_new() {
     pubkey="$(< "${KEY_FILE}.pub")"
 
     echo "Saving [$LAST_NUM] first..."
-    if grep -q "^$LAST_NUM=" "$CONFIG_FILE" 2>/dev/null; then
-        echo "[$LAST_NUM] already exists in config — skipping save."
+    local new_entry="$LAST_NUM=$USERNAME@$FULL_IP"
+    local existing_entry
+    existing_entry=$(grep "^$LAST_NUM=" "$CONFIG_FILE" 2>/dev/null | head -n1)
+
+    if [[ -n "$existing_entry" ]]; then
+        if [[ "$existing_entry" == "$new_entry" ]]; then
+            echo "[$LAST_NUM] already points to $USERNAME@$FULL_IP — no change needed."
+        else
+            echo "[$LAST_NUM] already exists: ${existing_entry#*=}"
+            echo
+            echo "Options:"
+            echo "  [u] Update [$LAST_NUM] to point to $USERNAME@$FULL_IP"
+            echo "  [n] Use a new shortcut (enter custom name)"
+            echo "  [c] Cancel"
+            echo
+            read -rp "Choice: " CONFLICT_CHOICE
+            case "$CONFLICT_CHOICE" in
+                u|U)
+                    # Remove old entry and add new one
+                    local tmp
+                    tmp="$(mktemp)"
+                    grep -v "^$LAST_NUM=" "$CONFIG_FILE" > "$tmp"
+                    echo "$new_entry" >> "$tmp"
+                    mv "$tmp" "$CONFIG_FILE"
+                    echo "Updated [$LAST_NUM] to $USERNAME@$FULL_IP"
+                    ;;
+                n|N)
+                    read -rp "Enter new shortcut name: " NEW_SHORTCUT
+                    if [[ -z "$NEW_SHORTCUT" ]]; then
+                        echo "No shortcut entered — cancelled."
+                        read -rp "Press Enter to continue..."
+                        return
+                    fi
+                    LAST_NUM="$NEW_SHORTCUT"
+                    echo "$LAST_NUM=$USERNAME@$FULL_IP" >> "$CONFIG_FILE"
+                    echo "Saved as [$LAST_NUM]"
+                    ;;
+                *)
+                    echo "Cancelled."
+                    read -rp "Press Enter to continue..."
+                    return
+                    ;;
+            esac
+        fi
     else
-        echo "$LAST_NUM=$USERNAME@$FULL_IP" >> "$CONFIG_FILE"
+        echo "$new_entry" >> "$CONFIG_FILE"
         echo "Saved."
     fi
     echo

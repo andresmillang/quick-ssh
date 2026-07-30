@@ -105,9 +105,38 @@ echo Verifying passwordless login...
 ssh -o BatchMode=yes -o ConnectTimeout=10 %REMOTE_USER%@%FULL_IP% "true"
 
 if %errorlevel% equ 0 (
-    echo %LAST_NUM%=%REMOTE_USER%@%FULL_IP%>>"%CONFIG_FILE%"
-    echo.
-    echo Saved^^! Use [%LAST_NUM%] to connect next time.
+    REM Check if shortcut already exists
+    set EXISTING=
+    for /f "tokens=1,2 delims==" %%a in (%CONFIG_FILE%) do (
+        if "%%a"=="%LAST_NUM%" set EXISTING=%%b
+    )
+    if defined EXISTING (
+        if "!EXISTING!"=="%REMOTE_USER%@%FULL_IP%" (
+            echo.
+            echo [%LAST_NUM%] already points to %REMOTE_USER%@%FULL_IP% - no change needed.
+        ) else (
+            echo.
+            echo [%LAST_NUM%] already exists: !EXISTING!
+            echo.
+            set /p UPDATE_CHOICE="Update [%LAST_NUM%] to %REMOTE_USER%@%FULL_IP%? (y/n): "
+            if /i "!UPDATE_CHOICE!"=="y" (
+                set TEMP_FILE=%TEMP%\quick_ssh_tmp.conf
+                if exist "!TEMP_FILE!" del "!TEMP_FILE!"
+                for /f "tokens=1,2 delims==" %%a in (%CONFIG_FILE%) do (
+                    if not "%%a"=="%LAST_NUM%" echo %%a=%%b>>"!TEMP_FILE!"
+                )
+                echo %LAST_NUM%=%REMOTE_USER%@%FULL_IP%>>"!TEMP_FILE!"
+                copy /y "!TEMP_FILE!" "%CONFIG_FILE%" >nul
+                echo Updated [%LAST_NUM%] to %REMOTE_USER%@%FULL_IP%
+            ) else (
+                echo Skipped saving.
+            )
+        )
+    ) else (
+        echo %LAST_NUM%=%REMOTE_USER%@%FULL_IP%>>"%CONFIG_FILE%"
+        echo.
+        echo Saved^^! Use [%LAST_NUM%] to connect next time.
+    )
     echo.
     set /p CONNECT_NOW="Connect now? (y/n): "
     if /i "!CONNECT_NOW!"=="y" ssh %REMOTE_USER%@%FULL_IP%
