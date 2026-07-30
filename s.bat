@@ -68,12 +68,12 @@ if "%REMOTE_USER%"=="" (
     goto MENU
 )
 
+REM Try to extract 4th octet for IPv4 addresses, otherwise use hostname as shortcut
 set LAST_NUM=
 for /f "tokens=4 delims=." %%a in ("%FULL_IP%") do set LAST_NUM=%%a
 if "%LAST_NUM%"=="" (
-    echo "%FULL_IP%" does not look like an IPv4 address.
-    pause
-    goto MENU
+    REM Not an IPv4 address - use the hostname itself as shortcut
+    set LAST_NUM=%FULL_IP%
 )
 
 echo.
