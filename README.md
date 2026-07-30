@@ -53,6 +53,12 @@ Type `s` for a menu:
 
 On Windows these live under `%USERPROFILE%\.ssh\`.
 
+## Troubleshooting
+
+- **Windows remote still asks for a password after `[a]`** — the key probably
+  went into a file `sshd` ignores, or one whose permissions it rejects. See
+  [docs/windows-authorized-keys.md](docs/windows-authorized-keys.md).
+
 ## Passphrase-protected keys
 
 If your existing `id_ed25519` has a passphrase, the script offers to either
