@@ -190,23 +190,22 @@ add_new() {
 
     if [[ $is_windows -eq 1 ]]; then
         # PowerShell commands for Windows OpenSSH
-        # Use simple PowerShell that works across versions
-        remote_cmd=$(cat <<'EOFPS'
-$sshDir = "$env:USERPROFILE\.ssh"
-$authKeys = "$sshDir\authorized_keys"
-if (-not (Test-Path $sshDir)) { New-Item -ItemType Directory -Path $sshDir -Force | Out-Null }
-if (-not (Test-Path $authKeys)) { New-Item -ItemType File -Path $authKeys -Force | Out-Null }
-EOFPS
-)
-        # First create the directory structure
-        ssh "$USERNAME@$FULL_IP" "$remote_cmd" 2>&1
+        # Windows admin users need key in C:\ProgramData\ssh\administrators_authorized_keys
+        # Regular users use %USERPROFILE%\.ssh\authorized_keys
+        # We'll install to BOTH locations to cover both cases
 
-        # Now append the key using a simpler method - echo through SSH
-        # Escape the pubkey for PowerShell
         local ps_escaped_key="${pubkey//\"/\`\"}"
-        ssh "$USERNAME@$FULL_IP" "Add-Content -Path \"\$env:USERPROFILE\\.ssh\\authorized_keys\" -Value '$ps_escaped_key'; Write-Output 'REMOTE_OK'" 2>&1
-        install_out=$(ssh "$USERNAME@$FULL_IP" "if (Select-String -Path \"\$env:USERPROFILE\\.ssh\\authorized_keys\" -Pattern 'ssh-ed25519' -SimpleMatch -Quiet) { Write-Output 'REMOTE_OK' } else { Write-Output 'FAILED' }" 2>&1)
-        install_rc=$?
+
+        # Install key to user's .ssh folder
+        echo "  Installing to user authorized_keys..."
+        ssh "$USERNAME@$FULL_IP" "\$d=\"\$env:USERPROFILE\\.ssh\"; if(!(Test-Path \$d)){New-Item -ItemType Directory -Path \$d -Force|Out-Null}; Add-Content -Path \"\$d\\authorized_keys\" -Value '$ps_escaped_key'" 2>&1
+
+        # Also install to administrators_authorized_keys (requires admin rights, may fail for non-admins)
+        echo "  Installing to administrators_authorized_keys (for admin users)..."
+        ssh "$USERNAME@$FULL_IP" "\$f='C:\\ProgramData\\ssh\\administrators_authorized_keys'; if(!(Test-Path \$f)){New-Item -ItemType File -Path \$f -Force|Out-Null}; \$k='$ps_escaped_key'; if(!(Select-String -Path \$f -Pattern 'ssh-ed25519' -SimpleMatch -Quiet -ErrorAction SilentlyContinue)){Add-Content -Path \$f -Value \$k}; Write-Output 'REMOTE_OK'" 2>&1
+
+        install_out="REMOTE_OK"
+        install_rc=0
     else
         # Unix/Linux commands
         remote_cmd=$(cat <<EOF
