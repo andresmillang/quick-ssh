@@ -171,10 +171,45 @@ add_new() {
     fi
     echo
 
-    echo "Installing key + fixing permissions on remote... (enter password if prompted)"
+    echo "Detecting remote OS..."
+    local os_check
+    os_check=$(ssh "$USERNAME@$FULL_IP" 'uname -s 2>/dev/null || echo WINDOWS' 2>&1)
+
+    local is_windows=0
+    if [[ "$os_check" == *"WINDOWS"* ]] || [[ "$os_check" == *"not recognized"* ]] || [[ "$os_check" == *"CommandNotFoundException"* ]]; then
+        is_windows=1
+        echo "Detected Windows remote host"
+    else
+        echo "Detected Unix/Linux remote host ($os_check)"
+    fi
     echo
-    local remote_cmd
-    remote_cmd=$(cat <<EOF
+
+    echo "Installing key on remote... (enter password if prompted)"
+    echo
+    local remote_cmd install_out install_rc
+
+    if [[ $is_windows -eq 1 ]]; then
+        # PowerShell commands for Windows OpenSSH
+        # Use simple PowerShell that works across versions
+        remote_cmd=$(cat <<'EOFPS'
+$sshDir = "$env:USERPROFILE\.ssh"
+$authKeys = "$sshDir\authorized_keys"
+if (-not (Test-Path $sshDir)) { New-Item -ItemType Directory -Path $sshDir -Force | Out-Null }
+if (-not (Test-Path $authKeys)) { New-Item -ItemType File -Path $authKeys -Force | Out-Null }
+EOFPS
+)
+        # First create the directory structure
+        ssh "$USERNAME@$FULL_IP" "$remote_cmd" 2>&1
+
+        # Now append the key using a simpler method - echo through SSH
+        # Escape the pubkey for PowerShell
+        local ps_escaped_key="${pubkey//\"/\`\"}"
+        ssh "$USERNAME@$FULL_IP" "Add-Content -Path \"\$env:USERPROFILE\\.ssh\\authorized_keys\" -Value '$ps_escaped_key'; Write-Output 'REMOTE_OK'" 2>&1
+        install_out=$(ssh "$USERNAME@$FULL_IP" "if (Select-String -Path \"\$env:USERPROFILE\\.ssh\\authorized_keys\" -Pattern 'ssh-ed25519' -SimpleMatch -Quiet) { Write-Output 'REMOTE_OK' } else { Write-Output 'FAILED' }" 2>&1)
+        install_rc=$?
+    else
+        # Unix/Linux commands
+        remote_cmd=$(cat <<EOF
 mkdir -p ~/.ssh
 touch ~/.ssh/authorized_keys
 grep -qxF "$pubkey" ~/.ssh/authorized_keys || echo "$pubkey" >> ~/.ssh/authorized_keys
@@ -184,9 +219,9 @@ chmod 600 ~/.ssh/authorized_keys
 echo REMOTE_OK
 EOF
 )
-    local install_out
-    install_out=$(ssh "$USERNAME@$FULL_IP" "$remote_cmd" 2>&1)
-    local install_rc=$?
+        install_out=$(ssh "$USERNAME@$FULL_IP" "$remote_cmd" 2>&1)
+        install_rc=$?
+    fi
     echo "$install_out"
 
     if [[ $install_rc -ne 0 || "$install_out" != *"REMOTE_OK"* ]]; then
@@ -204,17 +239,26 @@ EOF
         echo "Passwordless login verified."
     else
         echo
-        echo "Key installed but passwordless still fails. Remote diagnostics:"
-        echo
-        ssh "$USERNAME@$FULL_IP" '
-            echo "--- authorized_keys ---"
-            cat ~/.ssh/authorized_keys 2>/dev/null || echo "(missing)"
-            echo "--- permissions ---"
-            ls -ld ~ ~/.ssh ~/.ssh/authorized_keys 2>/dev/null
-            echo "--- sshd config ---"
-            grep -riE "^\s*(AuthorizedKeysFile|PubkeyAuthentication)" \
-                /etc/ssh/sshd_config /etc/ssh/sshd_config.d/ 2>/dev/null || echo "(no override)"
-        '
+        echo "Key installed but passwordless still fails."
+        if [[ $is_windows -eq 1 ]]; then
+            echo
+            echo "For Windows, ensure:"
+            echo "  1. OpenSSH Server is running (Get-Service sshd)"
+            echo "  2. Check C:\\ProgramData\\ssh\\sshd_config for PubkeyAuthentication yes"
+            echo "  3. For admin users, key may need to be in C:\\ProgramData\\ssh\\administrators_authorized_keys"
+        else
+            echo "Remote diagnostics:"
+            echo
+            ssh "$USERNAME@$FULL_IP" '
+                echo "--- authorized_keys ---"
+                cat ~/.ssh/authorized_keys 2>/dev/null || echo "(missing)"
+                echo "--- permissions ---"
+                ls -ld ~ ~/.ssh ~/.ssh/authorized_keys 2>/dev/null
+                echo "--- sshd config ---"
+                grep -riE "^\s*(AuthorizedKeysFile|PubkeyAuthentication)" \
+                    /etc/ssh/sshd_config /etc/ssh/sshd_config.d/ 2>/dev/null || echo "(no override)"
+            '
+        fi
         echo
         echo "You can still use [$LAST_NUM] — it will just prompt for password."
     fi
